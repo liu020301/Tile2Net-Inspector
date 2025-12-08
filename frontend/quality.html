@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quality Overview - Tile2Net Inspector</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        :root {
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: #141414;
+            background: #f3f4f6;
+        }
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #navbar {
+            background: #ffffff;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            height: 56px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        .nav-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-right: 32px;
+        }
+        .nav-links {
+            display: flex;
+            gap: 8px;
+        }
+        .nav-link {
+            padding: 8px 16px;
+            text-decoration: none;
+            color: #6b7280;
+            border-radius: 6px;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .nav-link:hover {
+            background: #f3f4f6;
+            color: #1f2937;
+        }
+        .nav-link.active {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        #main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            background: #f3f4f6;
+        }
+        .quality-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .quality-header {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .quality-header h1 {
+            margin: 0 0 8px 0;
+            font-size: 1.5rem;
+            color: #1f2937;
+        }
+        .quality-header p {
+            margin: 0;
+            color: #6b7280;
+            font-size: 0.95rem;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+        .metric-card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .metric-card h2 {
+            margin: 0 0 16px 0;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #6b7280;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 12px;
+        }
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+        .metric-label {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        .metric-value {
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 1rem;
+        }
+        .metric-value.good {
+            color: #10b981;
+        }
+        .metric-value.warning {
+            color: #f59e0b;
+        }
+        .metric-value.bad {
+            color: #ef4444;
+        }
+        .chart-container {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+        }
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+        .metric-selector {
+            margin-bottom: 16px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .metric-selector button {
+            padding: 6px 12px;
+            border: 1px solid #e5e7eb;
+            background: #ffffff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #6b7280;
+            transition: all 0.2s;
+        }
+        .metric-selector button:hover {
+            background: #f3f4f6;
+            border-color: #2563eb;
+        }
+        .metric-selector button.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+        .chart-container h2 {
+            margin: 0 0 16px 0;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #6b7280;
+        }
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 48px;
+            color: #6b7280;
+        }
+        .degree-bar {
+            fill: #2563eb;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .degree-bar:hover {
+            fill: #1d4ed8;
+        }
+        .axis {
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+        .axis-label {
+            font-size: 0.9rem;
+            fill: #6b7280;
+        }
+        .chart-tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .chart-tooltip.visible {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <nav id="navbar">
+        <div class="nav-title">Tile2Net Inspector</div>
+        <div class="nav-links">
+            <a href="/app/" class="nav-link" id="nav-map">Map View</a>
+            <a href="/app/analysis.html" class="nav-link" id="nav-analysis">Analysis</a>
+            <a href="/app/quality.html" class="nav-link active" id="nav-quality">Quality Overview</a>
+        </div>
+    </nav>
+    <div id="main-content">
+        <div class="quality-container">
+            <div class="quality-header">
+                <h1>Network Quality Overview</h1>
+                <p>Comprehensive analysis of network geometry, topology, and connectivity</p>
+            </div>
+            
+            <div id="quality-content">
+                <div class="loading">Loading quality metrics...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const apiBase = "/api";
+
+        async function fetchJSON(url) {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Request failed: ${response.status}`);
+            }
+            return response.json();
+        }
+
+
+        function renderDegreeDistributionChart(container, degreeDist) {
+            const margin = { top: 20, right: 20, bottom: 40, left: 50 };
+            const width = 400 - margin.left - margin.right;
+            const height = 250 - margin.top - margin.bottom;
+
+            // Create tooltip
+            const tooltip = d3.select("body")
+                .append("div")
+                .attr("class", "chart-tooltip")
+                .style("position", "absolute")
+                .style("opacity", 0);
+
+            const svg = d3.select(container)
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom);
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const data = Object.entries(degreeDist)
+                .map(([deg, count]) => ({ degree: parseInt(deg), count: parseInt(count) }))
+                .sort((a, b) => a.degree - b.degree);
+
+            const xScale = d3.scaleBand()
+                .domain(data.map(d => d.degree))
+                .range([0, width])
+                .padding(0.2);
+
+            const yScale = d3.scaleLinear()
+                .domain([0, d3.max(data, d => d.count)])
+                .nice()
+                .range([height, 0]);
+
+            g.append("g")
+                .attr("class", "axis")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(xScale));
+
+            g.append("g")
+                .attr("class", "axis")
+                .call(d3.axisLeft(yScale));
+
+            g.append("text")
+                .attr("class", "axis-label")
+                .attr("transform", "rotate(-90)")
+                .attr("y", 0 - margin.left)
+                .attr("x", 0 - (height / 2))
+                .attr("dy", "1em")
+                .style("text-anchor", "middle")
+                .text("Number of Nodes");
+
+            g.append("text")
+                .attr("class", "axis-label")
+                .attr("transform", `translate(${width / 2}, ${height + margin.bottom - 5})`)
+                .style("text-anchor", "middle")
+                .text("Node Degree");
+
+            const bars = g.selectAll(".degree-bar")
+                .data(data)
+                .enter()
+                .append("rect")
+                .attr("class", "degree-bar")
+                .attr("x", d => xScale(d.degree))
+                .attr("y", d => yScale(d.count))
+                .attr("width", xScale.bandwidth())
+                .attr("height", d => height - yScale(d.count))
+                .on("mouseover", function(event, d) {
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", 1);
+                    tooltip.html(`Degree ${d.degree}: ${d.count} nodes`)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 10) + "px")
+                        .classed("visible", true);
+                })
+                .on("mousemove", function(event) {
+                    tooltip
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 10) + "px");
+                })
+                .on("mouseout", function() {
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", 0)
+                        .classed("visible", false);
+                });
+        }
+
+        function renderQualityOverview(data) {
+            const container = document.getElementById("quality-content");
+            if (!container || !data) {
+                container.innerHTML = '<div class="loading">No data available</div>';
+                return;
+            }
+
+            const metrics = data.metrics || {};
+            const topology = data.network_topology || {};
+            const degree = topology.degree_distribution || {};
+            const connectivity = topology.connectivity || {};
+
+            container.innerHTML = `
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h2>Geometric Quality</h2>
+                        <div class="metric-row">
+                            <span class="metric-label">IoU</span>
+                            <span class="metric-value">${metrics.iou || 0}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Precision</span>
+                            <span class="metric-value">${metrics.precision || 0}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Recall</span>
+                            <span class="metric-value">${metrics.recall || 0}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">F1 Score</span>
+                            <span class="metric-value">${metrics.f1 || 0}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">MDE</span>
+                            <span class="metric-value">${metrics.mde || 0}</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <h2>Topological Quality</h2>
+                        <div class="metric-row">
+                            <span class="metric-label">Components</span>
+                            <span class="metric-value">${connectivity.num_components || 0}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Connectivity Ratio</span>
+                            <span class="metric-value">${((connectivity.connectivity_ratio || 0) * 100).toFixed(1)}%</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Isolated Segments</span>
+                            <span class="metric-value">${connectivity.isolated_segments || 0}</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Deadends Ratio</span>
+                            <span class="metric-value">${((degree.deadends_ratio || 0) * 100).toFixed(1)}%</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <h2>Node Degree Distribution</h2>
+                        <div id="degree-chart"></div>
+                    </div>
+                    <div class="chart-container">
+                        <h2>Component Size Distribution</h2>
+                        <div id="component-size-chart"></div>
+                    </div>
+                    <div class="chart-container">
+                        <h2>F1 Score Distribution</h2>
+                        <div id="f1-histogram"></div>
+                    </div>
+                </div>
+            `;
+
+            // Render degree distribution chart
+            if (degree.degree_distribution && Object.keys(degree.degree_distribution).length > 0) {
+                const chartContainer = document.getElementById("degree-chart");
+                renderDegreeDistributionChart(chartContainer, degree.degree_distribution);
+            }
+
+            // Render component size distribution chart
+            if (connectivity.component_size_distribution && Object.keys(connectivity.component_size_distribution).length > 0) {
+                const chartContainer = document.getElementById("component-size-chart");
+                renderComponentSizeChart(chartContainer, connectivity.component_size_distribution);
+            }
+
+            // Load tile analyses for histograms
+            loadTileAnalysesForCharts();
+        }
+
+        async function loadTileAnalysesForCharts() {
+            try {
+                const tileAnalyses = await fetchJSON(`${apiBase}/tile-analyses`);
+                renderHistograms(tileAnalyses);
+            } catch (error) {
+                console.error("Failed to load tile analyses:", error);
+            }
+        }
+
+        function renderComponentSizeChart(container, sizeDist) {
+            const margin = { top: 20, right: 20, bottom: 40, left: 50 };
+            const width = 400 - margin.left - margin.right;
+            const height = 250 - margin.top - margin.bottom;
+
+            const tooltip = d3.select("body")
+                .append("div")
+                .attr("class", "chart-tooltip")
+                .style("position", "absolute")
+                .style("opacity", 0);
+
+            const svg = d3.select(container)
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom);
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const data = Object.entries(sizeDist)
+                .map(([size, count]) => ({ size: parseInt(size), count: parseInt(count) }))
+                .sort((a, b) => a.size - b.size);
+
+            const xScale = d3.scaleBand()
+                .domain(data.map(d => d.size))
+                .range([0, width])
+                .padding(0.2);
+
+            const yScale = d3.scaleLinear()
+                .domain([0, d3.max(data, d => d.count)])
+                .nice()
+                .range([height, 0]);
+
+            g.append("g")
+                .attr("class", "axis")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(xScale));
+
+            g.append("g")
+                .attr("class", "axis")
+                .call(d3.axisLeft(yScale));
+
+            g.append("text")
+                .attr("class", "axis-label")
+                .attr("transform", "rotate(-90)")
+                .attr("y", 0 - margin.left)
+                .attr("x", 0 - (height / 2))
+                .attr("dy", "1em")
+                .style("text-anchor", "middle")
+                .text("Number of Components");
+
+            g.append("text")
+                .attr("class", "axis-label")
+                .attr("transform", `translate(${width / 2}, ${height + margin.bottom - 5})`)
+                .style("text-anchor", "middle")
+                .text("Component Size (nodes)");
+
+            const bars = g.selectAll(".component-bar")
+                .data(data)
+                .enter()
+                .append("rect")
+                .attr("class", "component-bar")
+                .attr("x", d => xScale(d.size))
+                .attr("y", d => yScale(d.count))
+                .attr("width", xScale.bandwidth())
+                .attr("height", d => height - yScale(d.count))
+                .attr("fill", "#2563eb")
+                .style("cursor", "pointer")
+                .on("mouseover", function(event, d) {
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", 1);
+                    tooltip.html(`Size ${d.size}: ${d.count} component(s)`)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 10) + "px")
+                        .classed("visible", true);
+                    d3.select(this).attr("fill", "#1d4ed8");
+                })
+                .on("mousemove", function(event) {
+                    tooltip
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 10) + "px");
+                })
+                .on("mouseout", function() {
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", 0)
+                        .classed("visible", false);
+                    d3.select(this).attr("fill", "#2563eb");
+                });
+        }
+
+
+        function renderHistograms(tileAnalyses) {
+            if (!tileAnalyses || tileAnalyses.length === 0) return;
+
+            // Render F1 histogram
+            const f1Values = tileAnalyses.map(t => t.metrics.f1 || 0).filter(v => v !== null);
+            if (f1Values.length > 0) {
+                renderHistogram(document.getElementById("f1-histogram"), f1Values, "F1 Score", [0, 1]);
+            }
+        }
+
+        function renderHistogram(container, values, label, domain) {
+            const margin = { top: 20, right: 20, bottom: 40, left: 50 };
+            const width = 400 - margin.left - margin.right;
+            const height = 250 - margin.top - margin.bottom;
+
+            const tooltip = d3.select("body")
+                .append("div")
+                .attr("class", "chart-tooltip")
+                .style("position", "absolute")
+                .style("opacity", 0);
+
+            const svg = d3.select(container)
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom);
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            // Create bins
+            const bins = d3.histogram()
+                .domain(domain)
+                .thresholds(20)(values);
+
+            const xScale = d3.scaleLinear()
+                .domain(domain)
+                .range([0, width]);
+
+            const yScale = d3.scaleLinear()
+                .domain([0, d3.max(bins, d => d.length)])
+                .nice()
+                .range([height, 0]);
+
+            g.append("g")
+                .attr("class", "axis")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(xScale).ticks(5));
+
+            g.append("g")
+                .attr("class", "axis")
+                .call(d3.axisLeft(yScale));
+
+            g.append("text")
+                .attr("class", "axis-label")
+                .attr("transform", "rotate(-90)")
+                .attr("y", 0 - margin.left)
+                .attr("x", 0 - (height / 2))
+                .attr("dy", "1em")
+                .style("text-anchor", "middle")
+                .text("Number of Tiles");
+
+            g.append("text")
+                .attr("class", "axis-label")
+                .attr("transform", `translate(${width / 2}, ${height + margin.bottom - 5})`)
+                .style("text-anchor", "middle")
+                .text(label);
+
+            const bars = g.selectAll(".hist-bar")
+                .data(bins)
+                .enter()
+                .append("rect")
+                .attr("class", "hist-bar")
+                .attr("x", d => xScale(d.x0))
+                .attr("y", d => yScale(d.length))
+                .attr("width", d => xScale(d.x1) - xScale(d.x0) - 1)
+                .attr("height", d => height - yScale(d.length))
+                .attr("fill", "#2563eb")
+                .style("cursor", "pointer")
+                .on("mouseover", function(event, d) {
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", 1);
+                    tooltip.html(`${d.x0.toFixed(3)} - ${d.x1.toFixed(3)}: ${d.length} tiles`)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 10) + "px")
+                        .classed("visible", true);
+                    d3.select(this).attr("fill", "#1d4ed8");
+                })
+                .on("mousemove", function(event) {
+                    tooltip
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 10) + "px");
+                })
+                .on("mouseout", function() {
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", 0)
+                        .classed("visible", false);
+                    d3.select(this).attr("fill", "#2563eb");
+                });
+        }
+
+        async function loadQualityData() {
+            try {
+                const data = await fetchJSON(`${apiBase}/analysis`);
+                renderQualityOverview(data);
+            } catch (error) {
+                console.error("Failed to load quality data:", error);
+                const container = document.getElementById("quality-content");
+                if (container) {
+                    container.innerHTML = `<div class="loading">Failed to load data: ${error.message}</div>`;
+                }
+            }
+        }
+
+        // Initialize
+        loadQualityData();
+    </script>
+</body>
+</html>
+

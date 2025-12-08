@@ -1,0 +1,18 @@
+{
+    "config": "D:\\inspector(2)\\inspector\\tile2net\\tileseg\\config.py",
+    "assets": {
+        "weights": {
+            "satellite_2021": "D:\\inspector(2)\\inspector\\tile2net\\raster\\resources\\assets\\weights\\satellite_2021.pth",
+            "hrnetv2_w48_imagenet_pretrained": "D:\\inspector(2)\\inspector\\tile2net\\raster\\resources\\assets\\weights\\hrnetv2_w48_imagenet_pretrained.pth"
+        }
+    },
+    "segmentation": "example_dir\\boston-common-boston-ma-us\\segmentation\\boston-common-boston-ma-us\\256_20_4",
+    "tiles": {
+        "info": "example_dir\\boston-common-boston-ma-us\\tiles\\boston-common-boston-ma-us_256_info.json",
+        "static": "example_dir\\boston-common-boston-ma-us\\tiles\\static\\ma\\256_20",
+        "stitched": "example_dir\\boston-common-boston-ma-us\\tiles\\stitched\\256_20_4"
+    },
+    "polygons": "example_dir\\boston-common-boston-ma-us\\polygons",
+    "network": "example_dir\\boston-common-boston-ma-us\\network",
+    "name": "boston-common-boston-ma-us"
+}

@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tile2Net Inspector</title>
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        crossorigin=""
+    />
+    <style>
+        :root {
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: #141414;
+            background: #f3f4f6;
+        }
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #navbar {
+            background: #ffffff;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            height: 56px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        .nav-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-right: 32px;
+        }
+        .nav-links {
+            display: flex;
+            gap: 8px;
+        }
+        .nav-link {
+            padding: 8px 16px;
+            text-decoration: none;
+            color: #6b7280;
+            border-radius: 6px;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .nav-link:hover {
+            background: #f3f4f6;
+            color: #1f2937;
+        }
+        .nav-link.active {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        #main-content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        #sidebar {
+            width: 320px;
+            background: #ffffff;
+            border-right: 1px solid #e5e7eb;
+            padding: 24px;
+            overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+        }
+        #map {
+            flex: 1;
+        }
+        h1 {
+            font-size: 1.25rem;
+            margin: 0 0 8px 0;
+        }
+        h2 {
+            font-size: 1rem;
+            margin: 24px 0 8px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #6b7280;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #f9fafb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 0.9rem;
+        }
+        th {
+            background: #eef2ff;
+            color: #4338ca;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+        .layer-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+        .legend-swatch {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 0, 0, 0.15);
+        }
+        .metadata {
+            font-size: 0.85rem;
+            color: #4b5563;
+            line-height: 1.4;
+            margin-top: 12px;
+        }
+        #status {
+            font-size: 0.85rem;
+            color: #ef4444;
+            margin-top: 12px;
+        }
+        .control-panel {
+            margin-top: 12px;
+            padding: 12px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+        .control-panel label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 6px;
+        }
+        .run-controls {
+            display: flex;
+            gap: 8px;
+        }
+        .run-controls input {
+            flex: 1;
+            padding: 8px 10px;
+            border: 1px solid #cbd5f5;
+            border-radius: 6px;
+        }
+        .run-controls button {
+            padding: 8px 16px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .run-controls button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .progress-track {
+            margin-top: 10px;
+            background: #e5e7eb;
+            height: 8px;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #2563eb, #22d3ee);
+        }
+        #progress-message {
+            margin-top: 6px;
+            font-size: 0.85rem;
+            color: #374151;
+        }
+    </style>
+</head>
+<body>
+    <nav id="navbar">
+        <div class="nav-title">Tile2Net Inspector</div>
+        <div class="nav-links">
+            <a href="/app/" class="nav-link active" id="nav-map">Map View</a>
+            <a href="/app/analysis.html" class="nav-link" id="nav-analysis">Analysis</a>
+            <a href="/app/quality.html" class="nav-link" id="nav-quality">Quality Overview</a>
+        </div>
+    </nav>
+    <div id="main-content">
+    <aside id="sidebar">
+        <h1>Tile2Net Inspector</h1>
+        <p id="status">Loading data, please wait...</p>
+        <div class="control-panel">
+            <label for="location-input">Location</label>
+            <div class="run-controls">
+                <input id="location-input" type="text" placeholder="e.g. Boston Common, Boston, MA" />
+                <button id="run-button">Run</button>
+            </div>
+            <div class="progress-track">
+                <div id="progress-fill" class="progress-fill"></div>
+            </div>
+            <div id="progress-message">Idle</div>
+        </div>
+        <div class="metadata" id="metadata"></div>
+
+        <h2>Base Map</h2>
+        <div class="control-panel">
+            <label for="basemap-select">Map Style</label>
+            <select id="basemap-select" style="width: 100%; padding: 8px 10px; border: 1px solid #cbd5f5; border-radius: 6px; font-size: 0.9rem;">
+                <option value="osm">OpenStreetMap (Standard)</option>
+                <option value="maptiler-omt">MapTiler OMT (Clean)</option>
+            </select>
+        </div>
+
+        <h2>Metrics</h2>
+        <table>
+            <tbody id="metrics-table">
+                <tr><td colspan="2">Not loaded yet</td></tr>
+            </tbody>
+        </table>
+
+        <h2>Layers</h2>
+        <div id="layer-toggles">        </div>
+    </aside>
+    <div id="map"></div>
+    </div>
+
+    <script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        crossorigin=""
+    ></script>
+    <script>
+        const apiBase = "/api";
+        const layerConfig = {
+            predicted_network: { label: "Predicted Network", color: "#facc15", weight: 5, opacity: 0.9 },
+            ground_truth: { label: "Ground Truth", color: "#3b82f6", weight: 4, opacity: 0.7 },
+            true_positive: { label: "True Positive", color: "#10b981", weight: 4, opacity: 0.9 },
+            false_positive: { label: "False Positive", color: "#ef4444", weight: 4, opacity: 0.9 },
+            false_negative: { label: "False Negative", color: "#9333ea", weight: 4, opacity: 0.8, isPoint: true },
+            polygons: { label: "Polygons", color: "#f472b6", weight: 1, opacity: 0.4, fillColor: "#f472b6" },
+            dead_ends: { label: "Dead Ends", color: "#dc2626", weight: 1, opacity: 0.6, isPoint: true, pointRadius: 14 },
+            intersections: { label: "Intersections", color: "#3b82f6", weight: 1, opacity: 0.6, isPoint: true, pointRadius: 14 }
+        };
+
+        const map = L.map("map");
+        
+        // Base map configurations
+        // To use MapTiler OMT, you need a free API key from https://cloud.maptiler.com/
+        const MAPTILER_API_KEY = 'fqbKcYdK5reQliDRD3WJ';
+        
+        const baseMaps = {
+            osm: L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+                maxZoom: 19
+            }),
+            "maptiler-omt": L.tileLayer(`https://api.maptiler.com/maps/openstreetmap/{z}/{x}/{y}.png?key=${MAPTILER_API_KEY}`, {
+                attribution: '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                maxZoom: 19
+            })
+        };
+        
+        let currentBaseLayer = baseMaps.osm.addTo(map);
+
+        const mapLayers = {};
+        const loadedGeoJson = {};
+        const layerToggles = {};
+        let currentMetadata = null;
+        let desiredLocation = "";
+        let statusPoller = null;
+
+        async function fetchJSON(url) {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Request failed: ${response.status}`);
+            }
+            return response.json();
+        }
+
+        function renderMetrics(metrics) {
+            const entries = [
+                ["MDE", metrics.mde],
+                ["IoU", metrics.iou],
+                ["Precision", metrics.precision],
+                ["Recall", metrics.recall],
+                ["F1", metrics.f1],
+                ["Distance Threshold (m)", metrics.distance_threshold_m],
+                ["Buffer Size", metrics.buffer_size]
+            ];
+            const tbody = document.getElementById("metrics-table");
+            tbody.innerHTML = entries
+                .map(([label, value]) => `<tr><th>${label}</th><td>${value}</td></tr>`)
+                .join("");
+        }
+
+        function renderMetadata(metadata) {
+            currentMetadata = metadata;
+            const node = document.getElementById("metadata");
+            node.innerHTML = `
+                <strong>Location:</strong> ${metadata.location}<br/>
+                <strong>Project:</strong> ${metadata.project_name}
+            `;
+            const input = document.getElementById("location-input");
+            if (!input.value) {
+                input.value = metadata.location;
+            }
+        }
+
+        function createLayerToggle(layerId, config) {
+            const container = document.getElementById("layer-toggles");
+            const wrapper = document.createElement("label");
+            wrapper.className = "layer-toggle";
+
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = ["predicted_network", "ground_truth", "true_positive"].includes(layerId);
+            // Dead ends and intersections are off by default
+            if (layerId === "dead_ends" || layerId === "intersections") {
+                checkbox.checked = false;
+            }
+            checkbox.addEventListener("change", () => toggleLayer(layerId, checkbox.checked));
+
+            const swatch = document.createElement("span");
+            swatch.className = "legend-swatch";
+            swatch.style.background = config.fillColor ?? config.color;
+            swatch.style.opacity = 0.8;
+
+            const label = document.createElement("span");
+            label.textContent = config.label;
+
+            wrapper.appendChild(checkbox);
+            wrapper.appendChild(swatch);
+            wrapper.appendChild(label);
+            container.appendChild(wrapper);
+            layerToggles[layerId] = checkbox;
+
+            if (checkbox.checked) {
+                toggleLayer(layerId, true);
+            }
+        }
+
+        async function toggleLayer(layerId, enable) {
+            if (mapLayers[layerId]) {
+                map.removeLayer(mapLayers[layerId]);
+                mapLayers[layerId] = null;
+            }
+            if (!enable) {
+                return;
+            }
+
+            if (!loadedGeoJson[layerId]) {
+                loadedGeoJson[layerId] = await fetchJSON(`${apiBase}/layers/${layerId}`);
+            }
+
+            const config = layerConfig[layerId];
+            const geojson = loadedGeoJson[layerId];
+            const style = {
+                color: config.color,
+                weight: config.weight ?? 2,
+                opacity: config.opacity ?? 0.8,
+                fillColor: config.fillColor ?? config.color,
+                fillOpacity: config.fillOpacity ?? 0.2
+            };
+
+            mapLayers[layerId] = L.geoJSON(geojson, {
+                style,
+                pointToLayer: (feature, latlng) => {
+                    if (config.isPoint) {
+                        const radius = config.pointRadius || 5;
+                        return L.circleMarker(latlng, {
+                            radius: radius,
+                            color: "white",
+                            fillColor: config.color,
+                            fillOpacity: config.opacity || 0.6,
+                            weight: 2,
+                            opacity: config.opacity || 0.6
+                        });
+                    }
+                    return L.circleMarker(latlng, { radius: 4, color: config.color });
+                }
+            }).addTo(map);
+
+            if (layerId === "predicted_network" && geojson.features.length > 0) {
+                const bounds = mapLayers[layerId].getBounds();
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [20, 20] });
+                }
+            }
+        }
+
+        function resetLayers() {
+            Object.keys(mapLayers).forEach(layerId => {
+                if (mapLayers[layerId]) {
+                    map.removeLayer(mapLayers[layerId]);
+                    mapLayers[layerId] = null;
+                }
+                loadedGeoJson[layerId] = null;
+            });
+        }
+
+        async function refreshData() {
+            try {
+                const [metrics, metadata] = await Promise.all([
+                    fetchJSON(`${apiBase}/metrics`),
+                    fetchJSON(`${apiBase}/metadata`)
+                ]);
+                renderMetrics(metrics);
+                renderMetadata(metadata);
+                document.getElementById("status").textContent = "Data loaded. Explore the layers below.";
+                resetLayers();
+                Object.entries(layerToggles).forEach(([layerId, checkbox]) => {
+                    if (checkbox.checked) {
+                        toggleLayer(layerId, true);
+                    }
+                });
+            } catch (error) {
+                document.getElementById("status").textContent = `Failed to load data: ${error.message}`;
+            }
+        }
+
+        async function fetchStatusLoop() {
+            try {
+                const status = await fetchJSON(`${apiBase}/status`);
+                updateStatusUI(status);
+                if (status.state === "idle" && (!currentMetadata || status.location !== currentMetadata.location)) {
+                    await refreshData();
+                }
+            } catch (error) {
+                document.getElementById("status").textContent = `Status error: ${error.message}`;
+            } finally {
+                statusPoller = setTimeout(fetchStatusLoop, 1500);
+            }
+        }
+
+        function updateStatusUI(status) {
+            const runButton = document.getElementById("run-button");
+            const progressFill = document.getElementById("progress-fill");
+            const progressMessage = document.getElementById("progress-message");
+
+            progressFill.style.width = `${status.progress || 0}%`;
+            progressMessage.textContent = status.message || "";
+            runButton.disabled = status.state === "running";
+        }
+
+        async function handleRun() {
+            const input = document.getElementById("location-input");
+            const location = input.value.trim();
+            if (!location) {
+                alert("Please enter a location.");
+                return;
+            }
+            try {
+                resetLayers();
+                Object.values(layerToggles).forEach(checkbox => (checkbox.checked = false));
+                await fetch(`${apiBase}/run`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ location })
+                });
+                document.getElementById("status").textContent = "Running analysis...";
+            } catch (error) {
+                document.getElementById("status").textContent = `Failed to start analysis: ${error.message}`;
+            }
+        }
+
+        // Base map switcher
+        function switchBaseMap(mapType) {
+            if (currentBaseLayer) {
+                map.removeLayer(currentBaseLayer);
+            }
+            currentBaseLayer = baseMaps[mapType];
+            currentBaseLayer.addTo(map);
+        }
+
+        async function init() {
+            // Base map selector
+            const basemapSelect = document.getElementById("basemap-select");
+            basemapSelect.addEventListener("change", (e) => {
+                switchBaseMap(e.target.value);
+            });
+            
+            document.getElementById("run-button").addEventListener("click", handleRun);
+            document.getElementById("location-input").addEventListener("keydown", (event) => {
+                if (event.key === "Enter") {
+                    handleRun();
+                }
+            });
+
+            try {
+                await refreshData();
+            } finally {
+                Object.entries(layerConfig).forEach(([layerId, config]) => createLayerToggle(layerId, config));
+                fetchStatusLoop();
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
+

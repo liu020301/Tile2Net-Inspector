@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Analysis - Tile2Net Inspector</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        :root {
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: #141414;
+            background: #f3f4f6;
+        }
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #navbar {
+            background: #ffffff;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            height: 56px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        .nav-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-right: 32px;
+        }
+        .nav-links {
+            display: flex;
+            gap: 8px;
+        }
+        .nav-link {
+            padding: 8px 16px;
+            text-decoration: none;
+            color: #6b7280;
+            border-radius: 6px;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .nav-link:hover {
+            background: #f3f4f6;
+            color: #1f2937;
+        }
+        .nav-link.active {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        #main-content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        .left-panel {
+            width: 350px;
+            background: #ffffff;
+            border-right: 1px solid #e5e7eb;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .panel-header {
+            padding: 16px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f9fafb;
+        }
+        .panel-header h2 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: #1f2937;
+        }
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .tiles-container {
+            flex: 1;
+            background: #f3f4f6;
+            overflow: hidden;
+            padding: 0;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #tiles-svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .tile-image {
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .tile-image:hover {
+            opacity: 0.8;
+        }
+        .tile-image.selected {
+            opacity: 0.6;
+            stroke: #2563eb;
+            stroke-width: 3;
+        }
+        .matrix-container {
+            height: 300px;
+            background: #ffffff;
+            border-top: 1px solid #e5e7eb;
+            padding: 16px;
+            overflow: auto;
+        }
+        #matrix-svg {
+            width: 100%;
+            height: 100%;
+        }
+        .tile-info {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .tile-info h3 {
+            margin: 0 0 12px 0;
+            font-size: 1rem;
+            color: #1f2937;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        .stat-label {
+            color: #6b7280;
+        }
+        .stat-value {
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #6b7280;
+        }
+        .no-selection {
+            text-align: center;
+            color: #6b7280;
+            padding: 32px 16px;
+        }
+        .no-selection p {
+            margin: 8px 0;
+        }
+        .tile-cell {
+            cursor: pointer;
+        }
+        .tile-cell rect {
+            transition: stroke-width 0.2s;
+        }
+        .layer-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+        .layer-toggle input[type="checkbox"] {
+            cursor: pointer;
+        }
+        .legend-swatch {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 0, 0, 0.15);
+        }
+        .layers-section {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .layers-section h3 {
+            margin: 0 0 12px 0;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #6b7280;
+        }
+        .network-topology-section {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .network-topology-section h3 {
+            margin: 0 0 12px 0;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #6b7280;
+        }
+        .topology-metric {
+            margin-bottom: 16px;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 6px;
+            border-left: 3px solid #2563eb;
+        }
+        .topology-metric-label {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+        .topology-metric-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .degree-distribution {
+            margin-top: 12px;
+            font-size: 0.85rem;
+        }
+        .degree-dist-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .degree-dist-item:last-child {
+            border-bottom: none;
+        }
+        .network-layer {
+            pointer-events: none;
+        }
+        .network-layer path {
+            fill: none;
+        }
+        .network-layer circle {
+            pointer-events: visible;
+        }
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 280px;
+            line-height: 1.6;
+        }
+        .tooltip-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 6px;
+        }
+        .tooltip-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+        .tooltip-label {
+            color: rgba(255, 255, 255, 0.8);
+            margin-right: 12px;
+        }
+        .tooltip-value {
+            font-weight: 600;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <nav id="navbar">
+        <div class="nav-title">Tile2Net Inspector</div>
+        <div class="nav-links">
+            <a href="/app/" class="nav-link" id="nav-map">Map View</a>
+            <a href="/app/analysis.html" class="nav-link active" id="nav-analysis">Analysis</a>
+            <a href="/app/quality.html" class="nav-link" id="nav-quality">Quality Overview</a>
+        </div>
+    </nav>
+    <div id="main-content">
+        <div class="left-panel">
+            <div class="panel-header">
+                <h2>Tile Information</h2>
+            </div>
+            <div class="panel-content" id="tile-info-panel">
+                <div id="tile-info-content">
+                <div class="no-selection">
+                    <p><strong>Click on a tile</strong></p>
+                    <p>Select a tile on the map to view its analysis data</p>
+                    </div>
+                </div>
+                <div class="layers-section">
+                    <h3>Layers</h3>
+                    <div id="layer-toggles"></div>
+                </div>
+                <div class="network-topology-section">
+                    <h3>Network Topology</h3>
+                    <div id="network-topology-content">
+                        <div class="loading">Loading topology metrics...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="right-panel">
+            <div class="tiles-container">
+                <!-- Tiles will be rendered here by d3.js -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const apiBase = "/api";
+        
+        // Layer configuration with improved colors for better visibility
+        const layerConfig = {
+            predicted_network: { label: "Predicted Network", color: "#fbbf24", weight: 8, opacity: 0.9 },
+            ground_truth: { label: "Ground Truth", color: "#3b82f6", weight: 6, opacity: 0.8 },
+            true_positive: { label: "True Positive", color: "#10b981", weight: 8, opacity: 0.9 },
+            false_positive: { label: "False Positive", color: "#ef4444", weight: 8, opacity: 0.9 },
+            false_negative: { label: "False Negative", color: "#9333ea", weight: 6, opacity: 0.8 },
+            polygons: { label: "Polygons", color: "#f472b6", weight: 2, opacity: 0.5, fillColor: "#f472b6", fillOpacity: 0.2 },
+            dead_ends: { label: "Dead Ends", color: "#dc2626", weight: 1, opacity: 0.6, isPoint: true, pointRadius: 14 },
+            intersections: { label: "Intersections", color: "#3b82f6", weight: 1, opacity: 0.6, isPoint: true, pointRadius: 14 }
+        };
+        
+        let tileAnalyses = [];
+        let tilesInfo = null;
+        let gridDimensions = null;
+        let selectedTile = null;
+        let loadedGeoJson = {};
+        let layerToggles = {};
+        let currentSvg = null;
+        let currentProjection = null;
+        let gridBounds = null; // [minLon, minLat, maxLon, maxLat]
+        let tooltip = null; // Tooltip element
+
+        // Create tooltip element
+        function createTooltip() {
+            if (tooltip) return tooltip;
+            tooltip = d3.select("body")
+                .append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0)
+                .style("display", "none");
+            return tooltip;
+        }
+
+        // Show tooltip with tile data
+        function showTooltip(event, tile) {
+            if (!tooltip) createTooltip();
+            
+            const tooltipHtml = `
+                <div class="tooltip-title">Tile ${tile.tile_id}</div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">Position:</span>
+                    <span class="tooltip-value">(${tile.position[0]}, ${tile.position[1]})</span>
+                </div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">Coordinates:</span>
+                    <span class="tooltip-value">(${tile.xtile}, ${tile.ytile})</span>
+                </div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">Deadends:</span>
+                    <span class="tooltip-value">${tile.deadends_count}</span>
+                </div>
+                <div class="tooltip-row" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.2);">
+                    <span class="tooltip-label">IoU:</span>
+                    <span class="tooltip-value">${tile.metrics.iou}</span>
+                </div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">Precision:</span>
+                    <span class="tooltip-value">${tile.metrics.precision}</span>
+                </div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">Recall:</span>
+                    <span class="tooltip-value">${tile.metrics.recall}</span>
+                </div>
+                <div class="tooltip-row">
+                    <span class="tooltip-label">F1:</span>
+                    <span class="tooltip-value">${tile.metrics.f1}</span>
+                </div>
+            `;
+            
+            tooltip
+                .html(tooltipHtml)
+                .style("display", "block")
+                .style("opacity", 0)
+                .transition()
+                .duration(200)
+                .style("opacity", 1);
+            
+            updateTooltipPosition(event);
+        }
+
+        // Update tooltip position
+        function updateTooltipPosition(event) {
+            if (!tooltip) return;
+            
+            // Get mouse position relative to the page
+            const mouseX = event.pageX || event.clientX;
+            const mouseY = event.pageY || event.clientY;
+            
+            const tooltipNode = tooltip.node();
+            if (!tooltipNode) return;
+            
+            const tooltipWidth = tooltipNode.offsetWidth || 280;
+            const tooltipHeight = tooltipNode.offsetHeight || 200;
+            const padding = 15;
+            
+            // Get viewport dimensions
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            // Calculate position (offset from mouse cursor)
+            let left = mouseX + padding;
+            let top = mouseY + padding;
+            
+            // Adjust if tooltip would go off screen
+            if (left + tooltipWidth > viewportWidth) {
+                left = mouseX - tooltipWidth - padding;
+            }
+            if (top + tooltipHeight > viewportHeight) {
+                top = mouseY - tooltipHeight - padding;
+            }
+            
+            tooltip
+                .style("left", `${left}px`)
+                .style("top", `${top}px`);
+        }
+
+        // Hide tooltip
+        function hideTooltip() {
+            if (!tooltip) return;
+            tooltip
+                .transition()
+                .duration(150)
+                .style("opacity", 0)
+                .on("end", function() {
+                    d3.select(this).style("display", "none");
+                });
+        }
+
+        async function fetchJSON(url) {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Request failed: ${response.status}`);
+            }
+            return response.json();
+        }
+
+        function renderTileInfo(tile) {
+            const container = document.getElementById("tile-info-content");
+            if (!container) return;
+            
+            if (!tile) {
+                container.innerHTML = `
+                    <div class="no-selection">
+                        <p><strong>Click on a tile</strong></p>
+                        <p>Select a tile on the map to view its analysis data</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="tile-info">
+                    <h3>Tile ${tile.tile_id}</h3>
+                    <div class="stat-row">
+                        <span class="stat-label">Position:</span>
+                        <span class="stat-value">(${tile.position[0]}, ${tile.position[1]})</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Coordinates:</span>
+                        <span class="stat-value">(${tile.xtile}, ${tile.ytile})</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Deadends:</span>
+                        <span class="stat-value">${tile.deadends_count}</span>
+                    </div>
+                    <h3 style="margin-top: 16px; margin-bottom: 8px;">Metrics</h3>
+                    <div class="stat-row">
+                        <span class="stat-label">IoU:</span>
+                        <span class="stat-value">${tile.metrics.iou}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Precision:</span>
+                        <span class="stat-value">${tile.metrics.precision}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Recall:</span>
+                        <span class="stat-value">${tile.metrics.recall}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">F1:</span>
+                        <span class="stat-value">${tile.metrics.f1}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function highlightTile(tile) {
+            selectedTile = tile;
+            renderTileInfo(tile);
+            
+            // Highlight tile in the tiles view
+            d3.selectAll(".tile-image").classed("selected", false);
+            const tileElement = d3.select(`#tile-${tile.xtile}-${tile.ytile}`);
+            if (!tileElement.empty()) {
+                tileElement.classed("selected", true);
+                // Scroll to tile if needed
+                const tileNode = tileElement.node();
+                if (tileNode) {
+                    tileNode.scrollIntoView({ behavior: "smooth", block: "center" });
+                }
+            }
+        }
+
+        // Convert lat/lon to tile coordinates (Web Mercator)
+        function deg2num(lat, lon, zoom) {
+            const n = Math.pow(2, zoom);
+            const xtile = Math.floor((lon + 180) / 360 * n);
+            const ytile = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * n);
+            return [xtile, ytile];
+        }
+
+        // Convert tile coordinates to lat/lon
+        function num2deg(xtile, ytile, zoom) {
+            const n = Math.pow(2, zoom);
+            const lon = xtile / n * 360 - 180;
+            const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * ytile / n))) * 180 / Math.PI;
+            return [lat, lon];
+        }
+
+        // Calculate grid bounds from tile analyses
+        function calculateGridBounds() {
+            if (!tileAnalyses.length || !tilesInfo) return null;
+            
+            const zoom = tilesInfo.zoom || 19;
+            let minLon = Infinity, maxLon = -Infinity;
+            let minLat = Infinity, maxLat = -Infinity;
+            
+            tileAnalyses.forEach(tile => {
+                // Get tile bounds
+                const [top, left] = num2deg(tile.xtile, tile.ytile, zoom);
+                const [bottom, right] = num2deg(tile.xtile + 1, tile.ytile + 1, zoom);
+                
+                minLon = Math.min(minLon, left);
+                maxLon = Math.max(maxLon, right);
+                minLat = Math.min(minLat, bottom);
+                maxLat = Math.max(maxLat, top);
+            });
+            
+            return [minLon, minLat, maxLon, maxLat];
+        }
+
+        // Create projection from geographic bounds to SVG coordinates
+        function createProjection(bounds, svgWidth, svgHeight) {
+            const [minLon, minLat, maxLon, maxLat] = bounds;
+            
+            // Simple linear projection (for small areas, this is acceptable)
+            const scaleX = svgWidth / (maxLon - minLon);
+            const scaleY = svgHeight / (maxLat - minLat);
+            
+            return {
+                project: (lon, lat) => {
+                    const x = (lon - minLon) * scaleX;
+                    const y = (maxLat - lat) * scaleY; // Flip Y axis (SVG Y increases downward)
+                    return [x, y];
+                },
+                bounds: bounds
+            };
+        }
+
+        function renderTiles() {
+            const container = d3.select(".tiles-container");
+            container.selectAll("*").remove();
+            
+            if (!tileAnalyses.length || !tilesInfo) {
+                container.append("div")
+                    .attr("class", "loading")
+                    .text("Loading tiles...");
+                return;
+            }
+            
+            // Get grid dimensions
+            let gridWidth, gridHeight;
+            if (gridDimensions) {
+                gridWidth = gridDimensions.base_width || gridDimensions.width;
+                gridHeight = gridDimensions.base_height || gridDimensions.height;
+            } else {
+                const positions = tileAnalyses.map(t => t.position);
+                if (positions.length > 0) {
+                    gridWidth = Math.max(...positions.map(p => p[0])) + 1;
+                    gridHeight = Math.max(...positions.map(p => p[1])) + 1;
+                } else {
+                    gridWidth = 1;
+                    gridHeight = 1;
+                }
+            }
+            
+            // Tile size in pixels (256px per tile)
+            const tileSize = 256;
+            const totalWidth = gridWidth * tileSize;
+            const totalHeight = gridHeight * tileSize;
+            
+            // Calculate grid bounds for projection
+            gridBounds = calculateGridBounds();
+            
+            // Create SVG with viewBox to fit in container (auto-scale)
+            const svg = container.append("svg")
+                .attr("id", "tiles-svg")
+                .attr("viewBox", `0 0 ${totalWidth} ${totalHeight}`)
+                .attr("preserveAspectRatio", "xMidYMid meet")
+                .style("display", "block")
+                .style("cursor", "grab");
+            
+            currentSvg = svg;
+            
+            // Create projection for network layers
+            if (gridBounds) {
+                currentProjection = createProjection(gridBounds, totalWidth, totalHeight);
+            }
+            
+            // Create a container group for all content (for zoom/pan transform)
+            const contentGroup = svg.append("g").attr("class", "content-group");
+            
+            // Create a group for tiles (rendered first, at bottom)
+            const tilesGroup = contentGroup.append("g").attr("class", "tiles-group");
+            
+            // Create a group for network layers (rendered on top of tiles)
+            const networkLayersGroup = contentGroup.append("g").attr("class", "network-layers-group");
+            
+            // Setup zoom behavior
+            const zoom = d3.zoom()
+                .scaleExtent([0.1, 10]) // Min and max zoom levels
+                .on("zoom", function(event) {
+                    contentGroup.attr("transform", event.transform);
+                    svg.style("cursor", event.sourceEvent && event.sourceEvent.type === "mousedown" ? "grabbing" : "grab");
+                });
+            
+            svg.call(zoom);
+            
+            // Store contentGroup for network layer rendering
+            svg.contentGroup = contentGroup;
+            
+            // Create lookup map for tile analyses by position
+            const tileMapByPos = new Map();
+            tileAnalyses.forEach(t => {
+                const pos = Array.isArray(t.position) ? t.position : [t.position[0], t.position[1]];
+                const key = `${pos[0]}_${pos[1]}`;
+                tileMapByPos.set(key, t);
+            });
+            
+            // Render all tiles in grid order
+            for (let row = 0; row < gridHeight; row++) {
+                for (let col = 0; col < gridWidth; col++) {
+                    const key = `${col}_${row}`;
+                    const tile = tileMapByPos.get(key);
+                    
+                    const x = col * tileSize;
+                    const y = row * tileSize;
+                    
+                    // Create group for this tile position
+                    const tileGroup = tilesGroup.append("g")
+                        .attr("class", "tile-group")
+                        .attr("transform", `translate(${x}, ${y})`);
+                    
+                    if (tile) {
+                        // Add tile image
+                        const imageUrl = `${apiBase}/tiles/${tilesInfo.zoom}/${tile.xtile}/${tile.ytile}`;
+                        tileGroup.append("image")
+                            .attr("id", `tile-${tile.xtile}-${tile.ytile}`)
+                            .attr("class", "tile-image")
+                            .attr("x", 0)
+                            .attr("y", 0)
+                            .attr("width", tileSize)
+                            .attr("height", tileSize)
+                            .attr("href", imageUrl)
+                            .on("click", () => {
+                                highlightTile(tile);
+                            })
+                            .on("mouseover", function(event) {
+                                d3.select(this).attr("opacity", 0.8);
+                                showTooltip(event, tile);
+                            })
+                            .on("mousemove", function(event) {
+                                updateTooltipPosition(event);
+                            })
+                            .on("mouseout", function() {
+                                if (!d3.select(this).classed("selected")) {
+                                    d3.select(this).attr("opacity", 1);
+                                }
+                                hideTooltip();
+                            });
+                    } else {
+                        // Empty tile - show placeholder
+                        tileGroup.append("rect")
+                            .attr("x", 0)
+                            .attr("y", 0)
+                            .attr("width", tileSize)
+                            .attr("height", tileSize)
+                            .attr("fill", "#e5e7eb")
+                            .attr("opacity", 0.5);
+                    }
+                    
+                    // Add tile border for all tiles
+                    tileGroup.append("rect")
+                        .attr("x", 0)
+                        .attr("y", 0)
+                        .attr("width", tileSize)
+                        .attr("height", tileSize)
+                        .attr("fill", "none")
+                        .attr("stroke", "#6b7280")
+                        .attr("stroke-width", 1)
+                        .attr("opacity", 0.4);
+                }
+            }
+            
+            // Re-render network layers if any are active
+            Object.entries(layerToggles).forEach(([layerId, checkbox]) => {
+                if (checkbox.checked && loadedGeoJson[layerId]) {
+                    renderNetworkLayer(layerId, loadedGeoJson[layerId]);
+                }
+            });
+            
+            // Add zoom controls hint
+            const zoomHint = svg.append("g")
+                .attr("class", "zoom-hint")
+                .attr("transform", `translate(20, 20)`)
+                .style("pointer-events", "none");
+            
+            zoomHint.append("rect")
+                .attr("x", -8)
+                .attr("y", -12)
+                .attr("width", 140)
+                .attr("height", 20)
+                .attr("fill", "rgba(255, 255, 255, 0.8)")
+                .attr("rx", 4);
+            
+            zoomHint.append("text")
+                .attr("x", 0)
+                .attr("y", 0)
+                .attr("font-size", "12px")
+                .attr("fill", "#6b7280")
+                .text("Scroll to zoom, drag to pan");
+            
+            // Fade out hint after 3 seconds
+            setTimeout(() => {
+                zoomHint.transition()
+                    .duration(1000)
+                    .style("opacity", 0)
+                    .on("end", function() {
+                        d3.select(this).remove();
+                    });
+            }, 3000);
+        }
+
+        // Convert lat/lon to tile coordinates (xtile, ytile)
+        function latLonToTile(lat, lon, zoom) {
+            const n = Math.pow(2, zoom);
+            const xtile = Math.floor((lon + 180) / 360 * n);
+            const ytile = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * n);
+            return [xtile, ytile];
+        }
+
+        // Create a map from (xtile, ytile) to tile position in grid
+        function createTilePositionMap() {
+            const tileMap = new Map();
+            tileAnalyses.forEach(tile => {
+                const key = `${tile.xtile}_${tile.ytile}`;
+                tileMap.set(key, tile);
+            });
+            return tileMap;
+        }
+
+        // Convert lat/lon to SVG coordinates based on tile positions
+        function latLonToSvg(lon, lat, zoom, tilePositionMap) {
+            const [xtile, ytile] = latLonToTile(lat, lon, zoom);
+            const key = `${xtile}_${ytile}`;
+            const tile = tilePositionMap.get(key);
+            
+            if (!tile) {
+                // Point is outside the grid, return null
+                return null;
+            }
+            
+            // Get the tile's top-left corner in lat/lon
+            const [tileTop, tileLeft] = num2deg(xtile, ytile, zoom);
+            const [tileBottom, tileRight] = num2deg(xtile + 1, ytile + 1, zoom);
+            
+            // Calculate position within the tile (0-256)
+            const tileSize = 256;
+            const xInTile = ((lon - tileLeft) / (tileRight - tileLeft)) * tileSize;
+            const yInTile = ((tileTop - lat) / (tileTop - tileBottom)) * tileSize;
+            
+            // Get tile's position in the grid
+            const pos = Array.isArray(tile.position) ? tile.position : [tile.position[0], tile.position[1]];
+            
+            // Calculate final SVG coordinates
+            const x = pos[0] * tileSize + xInTile;
+            const y = pos[1] * tileSize + yInTile;
+            
+            return [x, y];
+        }
+
+        // Render a network layer on the SVG
+        function renderNetworkLayer(layerId, geojson) {
+            if (!currentSvg || !tileAnalyses.length || !tilesInfo || !geojson) return;
+            
+            const config = layerConfig[layerId];
+            if (!config) return;
+            
+            // Remove existing layer if present
+            currentSvg.select(`.network-layer-${layerId}`).remove();
+            
+            // Get the network layers group from contentGroup
+            const networkLayersGroup = currentSvg.select(".network-layers-group");
+            if (networkLayersGroup.empty()) return;
+            
+            const layerGroup = networkLayersGroup
+                .append("g")
+                .attr("class", `network-layer network-layer-${layerId}`);
+            
+            // Normalize GeoJSON format
+            let featureCollection;
+            if (geojson.type === "FeatureCollection") {
+                featureCollection = geojson;
+            } else if (geojson.type === "Feature") {
+                featureCollection = { type: "FeatureCollection", features: [geojson] };
+            } else if (geojson.type && geojson.coordinates) {
+                featureCollection = { type: "FeatureCollection", features: [{ type: "Feature", geometry: geojson }] };
+            } else if (Array.isArray(geojson)) {
+                featureCollection = { type: "FeatureCollection", features: geojson };
+            } else {
+                console.warn(`Unknown GeoJSON format for layer ${layerId}:`, geojson);
+                return;
+            }
+            
+            if (!featureCollection.features || featureCollection.features.length === 0) {
+                return;
+            }
+            
+            const zoom = tilesInfo.zoom || 19;
+            const tilePositionMap = createTilePositionMap();
+            
+            // Create custom transform for d3.geoPath
+            const transform = d3.geoTransform({
+                point: function(lon, lat) {
+                    const coords = latLonToSvg(lon, lat, zoom, tilePositionMap);
+                    if (coords) {
+                        this.stream.point(coords[0], coords[1]);
+                    }
+                }
+            });
+            
+            const path = d3.geoPath().projection(transform);
+            
+            // Render features
+            featureCollection.features.forEach(feature => {
+                if (!feature.geometry) return;
+                
+                const geomType = feature.geometry.type;
+                
+                if (geomType === "LineString" || geomType === "MultiLineString") {
+                    layerGroup.append("path")
+                        .datum(feature)
+                        .attr("d", path)
+                        .attr("stroke", config.color)
+                        .attr("stroke-width", config.weight || 2)
+                        .attr("opacity", config.opacity || 0.8)
+                        .attr("fill", "none");
+                } else if (geomType === "Polygon" || geomType === "MultiPolygon") {
+                    layerGroup.append("path")
+                        .datum(feature)
+                        .attr("d", path)
+                        .attr("stroke", config.color)
+                        .attr("stroke-width", config.weight || 1)
+                        .attr("opacity", config.opacity || 0.4)
+                        .attr("fill", config.fillColor || config.color)
+                        .attr("fill-opacity", config.fillOpacity || 0.2);
+                } else if (geomType === "Point" || config.isPoint) {
+                    const coords = feature.geometry.coordinates;
+                    const svgCoords = latLonToSvg(coords[0], coords[1], zoom, tilePositionMap);
+                    if (svgCoords) {
+                        const radius = config.pointRadius || 5;
+                        layerGroup.append("circle")
+                            .attr("cx", svgCoords[0])
+                            .attr("cy", svgCoords[1])
+                            .attr("r", radius)
+                            .attr("fill", config.color)
+                            .attr("opacity", config.opacity || 0.6)
+                            .attr("stroke", "white")
+                            .attr("stroke-width", 2)
+                            .attr("stroke-opacity", config.opacity || 0.6);
+                    }
+                }
+            });
+        }
+
+        // Create layer toggle UI
+        function createLayerToggle(layerId, config) {
+            const container = document.getElementById("layer-toggles");
+            if (!container) return;
+            
+            const wrapper = document.createElement("label");
+            wrapper.className = "layer-toggle";
+
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = ["predicted_network", "ground_truth", "true_positive"].includes(layerId);
+            checkbox.addEventListener("change", () => toggleLayer(layerId, checkbox.checked));
+            
+            // Dead ends and intersections are off by default
+            if (layerId === "dead_ends" || layerId === "intersections") {
+                checkbox.checked = false;
+            }
+
+            const swatch = document.createElement("span");
+            swatch.className = "legend-swatch";
+            swatch.style.background = config.fillColor ?? config.color;
+            swatch.style.opacity = 0.8;
+
+            const label = document.createElement("span");
+            label.textContent = config.label;
+
+            wrapper.appendChild(checkbox);
+            wrapper.appendChild(swatch);
+            wrapper.appendChild(label);
+            container.appendChild(wrapper);
+            layerToggles[layerId] = checkbox;
+
+            if (checkbox.checked) {
+                toggleLayer(layerId, true);
+            }
+        }
+
+        // Toggle layer visibility
+        async function toggleLayer(layerId, enable) {
+            // Remove layer from SVG
+            if (currentSvg) {
+                currentSvg.select(`.network-layer-${layerId}`).remove();
+            }
+            
+            if (!enable) {
+                return;
+            }
+
+            // Load GeoJSON if not already loaded
+            if (!loadedGeoJson[layerId]) {
+                try {
+                    loadedGeoJson[layerId] = await fetchJSON(`${apiBase}/layers/${layerId}`);
+                } catch (error) {
+                    console.error(`Failed to load layer ${layerId}:`, error);
+                    return;
+                }
+            }
+
+            // Render the layer
+            renderNetworkLayer(layerId, loadedGeoJson[layerId]);
+        }
+
+        function renderNetworkTopology(topology) {
+            const container = document.getElementById("network-topology-content");
+            if (!container || !topology) return;
+            
+            const degree = topology.degree_distribution || {};
+            const connectivity = topology.connectivity || {};
+            
+            container.innerHTML = `
+                <div class="topology-metric">
+                    <div class="topology-metric-label">Node Degree Distribution</div>
+                    <div class="topology-metric-value">${degree.total_nodes || 0} nodes</div>
+                    <div style="margin-top: 8px; font-size: 0.85rem; color: #6b7280;">
+                        Avg: ${degree.avg_degree || 0} | Median: ${degree.median_degree || 0}
+                    </div>
+                    <div class="degree-distribution">
+                        ${Object.entries(degree.degree_distribution || {})
+                            .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+                            .map(([deg, count]) => `
+                                <div class="degree-dist-item">
+                                    <span>Degree ${deg}:</span>
+                                    <span style="font-weight: 600;">${count} nodes</span>
+                                </div>
+                            `).join('')}
+                    </div>
+                    <div style="margin-top: 8px; font-size: 0.85rem; color: #6b7280;">
+                        Deadends: ${((degree.deadends_ratio || 0) * 100).toFixed(1)}% | 
+                        Intersections: ${((degree.intersections_ratio || 0) * 100).toFixed(1)}%
+                    </div>
+                </div>
+                <div class="topology-metric">
+                    <div class="topology-metric-label">Network Connectivity</div>
+                    <div style="margin-top: 8px; font-size: 0.85rem; color: #6b7280;">
+                        Components: ${connectivity.num_components || 0} | 
+                        Largest: ${connectivity.largest_component_size || 0} nodes
+                    </div>
+                    <div style="margin-top: 4px; font-size: 0.85rem; color: #6b7280;">
+                        Connectivity Ratio: ${((connectivity.connectivity_ratio || 0) * 100).toFixed(1)}%
+                    </div>
+                    <div style="margin-top: 4px; font-size: 0.85rem; color: #6b7280;">
+                        Isolated Segments: ${connectivity.isolated_segments || 0}
+                    </div>
+                </div>
+            `;
+        }
+
+        async function loadData() {
+            try {
+                const [analyses, tiles, dimensions, analysisData] = await Promise.all([
+                    fetchJSON(`${apiBase}/tile-analyses`),
+                    fetchJSON(`${apiBase}/tiles-info`).catch(() => null),
+                    fetchJSON(`${apiBase}/grid-dimensions`).catch(() => null),
+                    fetchJSON(`${apiBase}/analysis`).catch(() => null)
+                ]);
+                
+                tileAnalyses = analyses;
+                tilesInfo = tiles;
+                gridDimensions = dimensions;
+                
+                renderTiles();
+                renderTileInfo(null);
+                
+                // Render network topology if available
+                if (analysisData && analysisData.network_topology) {
+                    renderNetworkTopology(analysisData.network_topology);
+                }
+                
+                // Create layer toggles
+                Object.entries(layerConfig).forEach(([layerId, config]) => {
+                    createLayerToggle(layerId, config);
+                });
+            } catch (error) {
+                console.error("Failed to load data:", error);
+                const contentContainer = document.getElementById("tile-info-content");
+                if (contentContainer) {
+                    contentContainer.innerHTML = 
+                    `<div class="loading">Failed to load data: ${error.message}</div>`;
+                }
+            }
+        }
+
+        // Initialize
+        loadData();
+    </script>
+</body>
+</html>

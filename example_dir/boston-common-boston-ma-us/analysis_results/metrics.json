@@ -1,0 +1,9 @@
+{
+  "mde": 0.004,
+  "iou": 0.899,
+  "precision": 0.9,
+  "recall": 0.901,
+  "f1": 0.9,
+  "distance_threshold_m": 5.0,
+  "buffer_size": 2.0
+}
