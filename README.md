@@ -15,6 +15,17 @@ A web-based visualization and analysis tool for inspecting Tile2Net network pred
 - **Tile-level Analysis**: Detailed metrics and visualization for individual tiles
 - **Fault Detection**: Identify true positives, false positives, and false negatives
 
+## Semantic Segmentation Requirements
+
+Same as Tile2Net:
+
+**Hardware requirements:**
+- `==1 CUDA-enabled GPU for inference`
+
+**Software requirements:**
+- `CUDA==11.7`
+- `Python==3.10.9`
+- `pytorch==2.0.0`
 
 ## Installation
 
