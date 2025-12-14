@@ -1,2 +1,3 @@
 tile2net/raster/resources/assets/weights/
+cache/
 *.pth

@@ -1,0 +1,42 @@
+{
+    "name": "public-garden-boston-ma-us",
+    "bbox": [
+        42.3519474764,
+        42.3560069067,
+        -71.0722732544,
+        -71.0667800903
+    ],
+    "location": [
+        42.352126,
+        -71.0722464,
+        42.3559877,
+        -71.0677496
+    ],
+    "size": 1024,
+    "zoom": 20,
+    "crs": 4326,
+    "tile_step": 4,
+    "project": {
+        "config": "D:\\inspector\\tile2net\\tileseg\\config.py",
+        "assets": {
+            "weights": {
+                "satellite_2021": "D:\\inspector\\tile2net\\raster\\resources\\assets\\weights\\satellite_2021.pth",
+                "hrnetv2_w48_imagenet_pretrained": "D:\\inspector\\tile2net\\raster\\resources\\assets\\weights\\hrnetv2_w48_imagenet_pretrained.pth"
+            }
+        },
+        "segmentation": "example_dir\\public-garden-boston-ma-us\\segmentation\\public-garden-boston-ma-us\\256_20_4",
+        "tiles": {
+            "info": "example_dir\\public-garden-boston-ma-us\\tiles\\public-garden-boston-ma-us_256_info.json",
+            "static": "example_dir\\public-garden-boston-ma-us\\tiles\\static\\ma\\256_20",
+            "stitched": "example_dir\\public-garden-boston-ma-us\\tiles\\stitched\\256_20_4"
+        },
+        "polygons": "example_dir\\public-garden-boston-ma-us\\polygons",
+        "network": "example_dir\\public-garden-boston-ma-us\\network",
+        "name": "public-garden-boston-ma-us"
+    },
+    "debug": false,
+    "output_dir": "example_dir",
+    "source": "ma",
+    "year": 2021,
+    "server": "https://tiles.arcgis.com/tiles/hGdibHYSPO59RG1h/arcgis/rest/services/orthos2021/MapServer"
+}
