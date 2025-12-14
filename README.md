@@ -18,7 +18,7 @@ A web-based visualization and analysis tool for inspecting Tile2Net network pred
 
 ## Installation
 
-1. Install dependencies:
+Install dependencies:
 ```bash
 pip install -r requirements-dev.txt
 ```
